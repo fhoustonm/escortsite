@@ -1,0 +1,91 @@
+if(typeof rc_segments_sent       === 'undefined'){ rc_segments_sent       = false; }
+if(typeof rc_segmented_widgets   === 'undefined'){ rc_segmented_widgets   = new Array(); }
+if(typeof rc_segmented_creatives === 'undefined'){ rc_segmented_creatives = new Array(); }
+if(typeof rc_loaded_widgets      === 'undefined'){ rc_loaded_widgets      = new Array(); }
+
+
+var segmenter = function()
+{
+    if (rc_segments_sent == true) {
+        return;
+    }
+
+    var widget_ids = new Array();
+    var elements = document.getElementsByClassName('rc-wc');
+    var i;
+    for(i = elements.length - 1; i >= 0; --i) {
+        widget_ids.push(elements[i].id);
+    }
+
+    widget_ids.sort();
+    rc_loaded_widgets.sort();
+
+    // Not all widgets are loaded
+    if (!(widget_ids.length == rc_loaded_widgets.length) && widget_ids.every(function(element, index) {
+        return element === rc_loaded_widgets[index];
+    })){
+        return;
+    }
+
+    rc_segments_sent = true;
+
+    var pixels = new Array();
+    elements = document.getElementsByClassName('rc-seg-pix');
+    var rc_pixel_hash = {};
+
+    for(i = elements.length - 1; i >= 0; --i) {
+        rc_pixel_hash[elements[i].id] = true;
+    }
+
+    elements = document.getElementsByTagName('script');
+    var urlparts;
+    var urlpart;
+    var src;
+
+    for(i = elements.length - 1; i >= 0; --i) {
+        src = elements[i].getAttribute('src');
+        urlparts = (src ? src.split(/[&?]/i) : []);
+        if (urlparts.length > 1) {
+            for (var j = urlparts.length - 1; j > -1; --j) {
+                urlpart = urlparts[j].split('=');
+                if (urlpart.length > 1) {
+                    if ('data-rc' == urlpart[0] && 'rc-seg-pix' == urlpart[1]) {
+                        rc_pixel_hash[elements[i].id] = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    for(var key in rc_pixel_hash) {
+        if (key) {
+            pixels.push(key);
+        }
+    }
+
+    // Nothing to send
+    if(rc_segmented_widgets.length <= 0 && pixels.length <= 0 && rc_segmented_widgets.length <= 0) {
+        return;
+    }
+
+    loadJSONP('//trends.revcontent.com//seg.php?callback=loaded&widgets=' + rc_segmented_widgets.join() + '&pixels=' + pixels.join() + '&creatives=' + rc_segmented_creatives.join())
+}
+
+var loaded = function ( data ) {
+    rc_segments_sent = true;
+}
+
+var loadJSONP = function ( url ) {
+    var ref = window.document.getElementsByTagName( 'script' )[ 0 ];
+    var script = window.document.createElement( 'script' );
+    script.src = url + (url.indexOf( '?' ) + 1 ? '&' : '?');
+    ref.parentNode.insertBefore( script, ref );
+    script.onload = function () {
+        this.remove();
+    };
+};
+
+document.addEventListener("DOMContentLoaded", function(event) {
+    segmenter();
+});
